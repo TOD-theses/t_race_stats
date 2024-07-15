@@ -55,7 +55,7 @@ def df_sum_components_ms(timings: Sequence[dict]):
 
     trace_analyze_ms = df_components[df_components["component"] == "trace_analyze"][
         "elapsed_ms"
-    ].values[0] # type: ignore
+    ].values[0]  # type: ignore
     df_trace_analyze = df_trace_analyze_percentage * trace_analyze_ms
 
     results = [
@@ -64,7 +64,7 @@ def df_sum_components_ms(timings: Sequence[dict]):
             int(
                 df_components[df_components["component"] == "t_race"][
                     "elapsed_ms"
-                ].values[0] # type: ignore
+                ].values[0]  # type: ignore
             ),
         ),
         (
@@ -72,7 +72,7 @@ def df_sum_components_ms(timings: Sequence[dict]):
             int(
                 df_components[df_components["component"] == "mine"][
                     "elapsed_ms"
-                ].values[0] # type: ignore
+                ].values[0]  # type: ignore
             ),
         ),
         ("trace", int(df_trace_analyze["trace"])),
