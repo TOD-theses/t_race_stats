@@ -2,6 +2,7 @@ import csv
 import json
 from pathlib import Path
 from typing import Sequence
+import matplotlib.ticker
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -38,8 +39,15 @@ def load_candidates(input_dir: Path) -> Sequence[dict]:
 
 
 def create_charts(stats: dict, candidates: Sequence[dict], output_dir: Path):
+    fig = create_collisions_limited_per_address_fig(
+        stats["frequencies"]["collisions_addresses"]
+    )
+    fig.savefig(output_dir / "collisions_limited_per_address.png")
+    fig.clear()
+
     fig = create_block_dist_fig(candidates)
     fig.savefig(output_dir / "tod_candidates_block_dist.png")
+    fig.clear()
 
 
 def create_block_dist_fig(collisions: Sequence[dict]):
@@ -80,4 +88,35 @@ def create_block_dist_fig(collisions: Sequence[dict]):
     ax2.set_ylabel("Cumulative percentage of TOD candidates")
     fig.legend(loc="upper left")
 
+    return fig
+
+
+def create_collisions_limited_per_address_fig(
+    collision_addresses_frequencies: Sequence[tuple[int, int]],
+):
+    collisions_with_max_n_per_addr: list[tuple[int, int]] = []
+    max_collisions_per_address = collision_addresses_frequencies[0][0]
+
+    for n in range(1, max_collisions_per_address):
+        collisions = sum(
+            min(colls_per_addr, n) * times
+            for colls_per_addr, times in collision_addresses_frequencies
+        )
+        collisions_with_max_n_per_addr.append((n, collisions))
+
+    df = pd.DataFrame.from_records(
+        collisions_with_max_n_per_addr, index="n", columns=["n", "collisions"]
+    )
+
+    fig, ax = plt.subplots()
+    ax.plot(df.index, df["collisions"])
+    ax.set_title("Limit for collisions per address")
+    ax.set_xlabel("Collisions limit")
+    ax.set_ylabel("Collisions")
+    ax.set_ylim(bottom=0)
+    ax.set_xlim((0.6, 10000))
+    ax.set_xscale("log")
+    # ax.set_xticks([1, 5, 10, 50, 100, 500, 1000, 5000])
+    ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    ax.grid(axis="both", alpha=0.6, zorder=0)
     return fig
