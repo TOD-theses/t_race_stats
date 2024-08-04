@@ -12,7 +12,6 @@ def process_stats(input_dir: Path, output_dir: Path):
     output_dir.mkdir(exist_ok=True)
 
     available_components = get_available_components(input_dir)
-    available_components.remove("t_race")
     print(f"Creating stats for components: {available_components}")
 
     if "mine" in available_components:

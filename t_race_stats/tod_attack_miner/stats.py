@@ -1,11 +1,16 @@
 import csv
 import json
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, TypedDict
 import matplotlib.ticker
 import pandas as pd
 import matplotlib.pyplot as plt
 
+class TODCandidate(TypedDict):
+    tx_a: str
+    tx_b: str
+    block_dist: int
+    types: Sequence[str]
 
 def process_tod_attack_miner_stats(input_dir: Path, output_dir: Path):
     stats = load_stats(input_dir)
@@ -19,7 +24,7 @@ def load_stats(input_dir: Path) -> dict:
         return stats
 
 
-def load_candidates(input_dir: Path) -> Sequence[dict]:
+def load_candidates(input_dir: Path) -> Sequence[TODCandidate]:
     with open(input_dir / "tod_candidates.csv") as f:
         reader = csv.DictReader(f)
 
@@ -28,8 +33,8 @@ def load_candidates(input_dir: Path) -> Sequence[dict]:
         for row in reader:
             candidates.append(
                 {
-                    "tx_write_hash": row["tx_write_hash"],
-                    "tx_access_hash": row["tx_access_hash"],
+                    "tx_a": row["tx_a"],
+                    "tx_b": row["tx_b"],
                     "block_dist": int(row["block_dist"]),
                     "types": row["types"].split("|"),
                 }
@@ -38,7 +43,7 @@ def load_candidates(input_dir: Path) -> Sequence[dict]:
         return candidates
 
 
-def create_charts(stats: dict, candidates: Sequence[dict], output_dir: Path):
+def create_charts(stats: dict, candidates: Sequence[TODCandidate], output_dir: Path):
     fig = create_collisions_limited_per_address_fig(
         stats["frequencies"]["collisions_addresses"]
     )
@@ -50,7 +55,7 @@ def create_charts(stats: dict, candidates: Sequence[dict], output_dir: Path):
     fig.clear()
 
 
-def create_block_dist_fig(collisions: Sequence[dict]):
+def create_block_dist_fig(collisions: Sequence[TODCandidate]):
     df = pd.DataFrame.from_records(collisions, columns=["block_dist"])
 
     cdf = (

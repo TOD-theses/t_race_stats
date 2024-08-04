@@ -1,9 +1,12 @@
 import csv
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, TypedDict
 
 import pandas as pd
 
+class TimeEntry(TypedDict):
+    task: Sequence[str]
+    ms: int
 
 def process_timing_stats(input_dir: Path, output_dir: Path):
     timings = load_timings(input_dir)
@@ -11,25 +14,23 @@ def process_timing_stats(input_dir: Path, output_dir: Path):
     fig.savefig(output_dir / "timings_components.png")
 
 
-def load_timings(input_dir: Path) -> Sequence[dict]:
+def load_timings(input_dir: Path) -> Sequence[TimeEntry]:
     path = input_dir / "timings.csv"
 
     with open(path) as f:
         reader = csv.DictReader(f)
         return [
             {
-                "type": t["type"],
-                "component": t["component"],
-                "step": t["step"] or None,
-                "elapsed_ms": int(t["elapsed_ms"]),
+                "task": t["task"].split("|"),
+                "ms": int(t["elapsed_ms"]),
             }
             for t in reader
         ]
 
 
-def create_component_timing_fig(timings: Sequence[dict]):
+def create_component_timing_fig(timings: Sequence[TimeEntry]):
     df = df_sum_components_ms(timings)
-    df["elapsed_s"] = df["elapsed_ms"].div(1000).round()
+    df["elapsed_s"] = df["elapsed_ms"].div(1000).round(decimals=1)
     ax = df.plot.bar(
         y="elapsed_s",
         rot=0,
@@ -44,40 +45,33 @@ def create_component_timing_fig(timings: Sequence[dict]):
     return fig
 
 
-def df_sum_components_ms(timings: Sequence[dict]):
-    df = pd.DataFrame.from_records(timings)
-    df_steps = df[(df["type"] == "step") & df["component"].isin(("trace", "analyze"))]
-    df_trace_analyze_percentage = (
-        df_steps.groupby("component")["elapsed_ms"].agg("sum")
-        / df_steps["elapsed_ms"].sum()
-    )
-    df_components = df[(df["type"] == "component")]
+def df_sum_components_ms(timings: Sequence[TimeEntry]):
+    main_tasks = [t for t in timings if len(t['task']) == 2]
+    sub_tasks = [t for t in timings if len(t['task']) == 3]
 
-    trace_analyze_ms = df_components[df_components["component"] == "trace_analyze"][
-        "elapsed_ms"
-    ].values[0]  # type: ignore
-    df_trace_analyze = df_trace_analyze_percentage * trace_analyze_ms
+    total = next(t['ms'] for t in timings if len(t['task']) == 1)
+    mine = next(t['ms'] for t in main_tasks if t['task'][1] == 'mine')
+    check = next(t["ms"] for t in main_tasks if t['task'][1] == 'check')
+    trace_analyze = next(t['ms'] for t in main_tasks if t['task'][1] == 'trace_analyze')
+
+    # because of parallelism, we compute the total sequential and adjust it to the total with parallelism
+    trace_total = sum(t['ms'] for t in sub_tasks if t["task"][1] == 'trace')
+    analyze_total = sum(t['ms'] for t in sub_tasks if t["task"][1] == 'analyze')
+    trace_analyze_total = trace_total + analyze_total
+    trace = trace_analyze * (trace_total / trace_analyze_total)
+    analyze = trace_analyze * (analyze_total / trace_analyze_total)
+
+    other = total - (mine + check + trace + analyze)
 
     results = [
-        (
-            "total",
-            int(
-                df_components[df_components["component"] == "t_race"][
-                    "elapsed_ms"
-                ].values[0]  # type: ignore
-            ),
-        ),
-        (
-            "mine",
-            int(
-                df_components[df_components["component"] == "mine"][
-                    "elapsed_ms"
-                ].values[0]  # type: ignore
-            ),
-        ),
-        ("trace", int(df_trace_analyze["trace"])),
-        ("analyze", int(df_trace_analyze["analyze"])),
+        ("total", total),
+        ("mine", mine),
+        ("check", check),
+        ("trace", trace),
+        ("analyze", analyze),
+        ("other", other),
     ]
+
     return pd.DataFrame.from_records(
         results, index="component", columns=("component", "elapsed_ms")
     )
