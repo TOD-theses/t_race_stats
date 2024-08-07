@@ -47,28 +47,19 @@ def create_component_timing_fig(timings: Sequence[TimeEntry]):
 
 def df_sum_components_ms(timings: Sequence[TimeEntry]):
     main_tasks = [t for t in timings if len(t['task']) == 2]
-    sub_tasks = [t for t in timings if len(t['task']) == 3]
 
     total = next(t['ms'] for t in timings if len(t['task']) == 1)
     mine = next(t['ms'] for t in main_tasks if t['task'][1] == 'mine')
     check = next(t["ms"] for t in main_tasks if t['task'][1] == 'check')
-    trace_analyze = next(t['ms'] for t in main_tasks if t['task'][1] == 'trace_analyze')
+    properties = next(t['ms'] for t in main_tasks if t['task'][1] == 'properties')
 
-    # because of parallelism, we compute the total sequential and adjust it to the total with parallelism
-    trace_total = sum(t['ms'] for t in sub_tasks if t["task"][1] == 'trace')
-    analyze_total = sum(t['ms'] for t in sub_tasks if t["task"][1] == 'analyze')
-    trace_analyze_total = trace_total + analyze_total
-    trace = trace_analyze * (trace_total / trace_analyze_total)
-    analyze = trace_analyze * (analyze_total / trace_analyze_total)
-
-    other = total - (mine + check + trace + analyze)
+    other = total - (mine + check + properties)
 
     results = [
         ("total", total),
         ("mine", mine),
         ("check", check),
-        ("trace", trace),
-        ("analyze", analyze),
+        ("properties", properties),
         ("other", other),
     ]
 

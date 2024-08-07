@@ -19,7 +19,7 @@ def process_stats(input_dir: Path, output_dir: Path):
 
     if (
         "mine" in available_components
-        and "trace" in available_components
-        and "analyze" in available_components
+        and "check" in available_components
+        and "properties" in available_components
     ):
         process_timing_stats(input_dir, output_dir)
